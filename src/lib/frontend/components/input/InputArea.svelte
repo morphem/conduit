@@ -12,6 +12,7 @@
 	import ContextBar from "./ContextBar.svelte";
 	// biome-ignore lint/style/useImportType: FileMenu is used as a value for bind:this
 	import FileMenu from "./FileMenu.svelte";
+	import HuginnMic from "./HuginnMic.svelte";
 	import InstanceModelPicker from "../model/InstanceModelPicker.svelte";
 	import PermissionModeSelector from "./PermissionModeSelector.svelte";
 	import SkillHighlightBackdrop from "./SkillHighlightBackdrop.svelte";
@@ -351,6 +352,20 @@
 		attachMenuOpen = !attachMenuOpen;
 	}
 
+	/** Append a Huginn transcript (raw or refined) at the end of the draft. */
+	function handleHuginnInsert(text: string) {
+		inputText = inputText.trim() ? `${inputText.trimEnd()} ${text}` : text;
+		cursorPos = inputText.length;
+		requestAnimationFrame(() => {
+			if (textareaEl) {
+				textareaEl.focus();
+				textareaEl.selectionStart = inputText.length;
+				textareaEl.selectionEnd = inputText.length;
+				autoResize();
+			}
+		});
+	}
+
 	function handleAttachCamera() {
 		attachMenuOpen = false;
 		const fileInput = document.createElement("input");
@@ -627,6 +642,11 @@
 				>
 					<!-- Attach button + menu -->
 					<AttachMenu open={attachMenuOpen} onToggle={toggleAttachMenu} onCamera={handleAttachCamera} onPhotos={handleAttachPhotos} />
+
+					<!-- Huginn voice capture -->
+					<div id="huginn-mic-wrap-slot">
+						<HuginnMic onInsert={handleHuginnInsert} />
+					</div>
 
 					<!-- Agent selector -->
 					<div id="agent-selector-wrap">

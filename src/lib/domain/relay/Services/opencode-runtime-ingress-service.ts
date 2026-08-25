@@ -11,6 +11,7 @@ import {
 import {
 	OpenCodeRuntimeEventTranslator,
 	opencodeSessionCreatedRuntimeEvent,
+	opencodeSessionRenamedRuntimeEvent,
 } from "../../../provider/opencode/opencode-runtime-event-translator.js";
 import type { SSEEvent } from "../../../relay/opencode-events.js";
 import {
@@ -40,7 +41,25 @@ export interface OpenCodeRuntimeIngressStats {
 	errors: number;
 }
 
+export interface OpenCodeExistingSession {
+	readonly id: string;
+	readonly title?: string | undefined;
+	readonly parentId?: string | undefined;
+}
+
 export interface EffectOpenCodeRuntimeIngressPort {
+	/**
+	 * Seed sessions that OpenCode already holds into the event store.
+	 *
+	 * The store only learns about a session when an SSE event mentions it, so a
+	 * session made in a TUI before this relay started stays invisible in the
+	 * browser. This writes the same synthetic session.created the SSE path
+	 * writes, plus the title, for every session not already in the store.
+	 * Returns the number of sessions seeded.
+	 */
+	importExistingSessionsEffect(
+		sessions: ReadonlyArray<OpenCodeExistingSession>,
+	): Effect.Effect<number>;
 	onSSEEventEffect(
 		event: SSEEvent,
 		sessionId: string | undefined,
@@ -106,6 +125,62 @@ export class EffectOpenCodeRuntimeIngress
 
 	recoverEffect(): Effect.Effect<void, ProjectionRunnerError | SqlError> {
 		return this.withSql(this.projectionRunner.recover()).pipe(Effect.asVoid);
+	}
+
+	importExistingSessionsEffect(
+		sessions: ReadonlyArray<OpenCodeExistingSession>,
+	): Effect.Effect<number> {
+		return Effect.gen(this, function* () {
+			let seeded = 0;
+			for (const session of sessions) {
+				if (this.seenSessions.has(session.id)) continue;
+				// A session already in the store must not be seeded twice: the
+				// second session.created would reset the projected row.
+				if (yield* this.hasDurableSession(session.id)) {
+					this.seenSessions.add(session.id);
+					continue;
+				}
+
+				const events: ProviderRuntimeEvent[] = [
+					opencodeSessionCreatedRuntimeEvent(session.id),
+				];
+				if (session.title) {
+					events.push(
+						opencodeSessionRenamedRuntimeEvent(session.id, session.title),
+					);
+				}
+
+				const written = yield* this.ingestion
+					.ingestBatch(events, { publish: false })
+					.pipe(
+						Effect.catchAllCause((cause) =>
+							Effect.sync(() => {
+								this.stats.errors++;
+								this.log.warn(
+									"opencode-runtime-ingress: import of an existing session failed",
+									{
+										sessionId: session.id,
+										error: formatErrorDetail(cause),
+									},
+								);
+								return 0;
+							}),
+						),
+					);
+				if (written > 0) {
+					this.seenSessions.add(session.id);
+					this.stats.eventsWritten += written;
+					seeded++;
+				}
+			}
+			if (seeded > 0) {
+				this.log.info(
+					"opencode-runtime-ingress: imported existing OpenCode sessions",
+					{ seeded, offered: sessions.length },
+				);
+			}
+			return seeded;
+		});
 	}
 
 	onSSEEventEffect(

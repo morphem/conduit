@@ -590,6 +590,29 @@ export function opencodeSessionCreatedRuntimeEvent(
 	};
 }
 
+export function opencodeSessionRenamedRuntimeEvent(
+	sessionId: string,
+	title: string,
+): ProviderRuntimeEvent {
+	return {
+		eventId: createEventId(),
+		type: "session.renamed",
+		providerId: "opencode",
+		sessionId,
+		providerRefs: { providerSessionId: sessionId },
+		rawSource: { kind: "conduit.opencode-runtime-ingress.session-seeder" },
+		createdAt: Date.now(),
+		data: {
+			sessionId,
+			title,
+		},
+		metadata: {
+			synthetic: true,
+			source: "opencode-runtime-ingress",
+		},
+	};
+}
+
 function opencodeRuntimeEvent(
 	type: ProviderRuntimeEvent["type"],
 	sessionId: string,

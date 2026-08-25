@@ -4,7 +4,6 @@
 // storage. This layer proxies session CRUD and maintains in-memory active state.
 
 import { EventEmitter } from "node:events";
-import { loadDaemonConfig } from "../daemon/config-persistence.js";
 import {
 	type ForkEntry,
 	loadForkMetadata,
@@ -12,8 +11,6 @@ import {
 } from "../daemon/fork-metadata.js";
 import { OpenCodeApiError } from "../errors.js";
 import type { OpenCodeAPI } from "../instance/opencode-api.js";
-import { createSdkClient } from "../instance/sdk-factory.js";
-import type { OpencodeClient } from "@opencode-ai/sdk/client";
 import type { SessionDetail, SessionStatus } from "../instance/sdk-types.js";
 import { createSilentLogger, type Logger } from "../logger.js";
 import type { HistoryMessage } from "../shared-types.js";
@@ -117,24 +114,6 @@ export class SessionManager extends EventEmitter<SessionManagerEvents> {
 		this.forkMeta = loadForkMetadata(options.configDir);
 	}
 
-	/** Per-directory SDK clients — the unscoped client cannot see project-scoped sessions. */
-	private scopedClients = new Map<string, OpencodeClient>();
-
-	/** sessionId → project directory, learned from scoped fetches. */
-	private sessionDirectories = new Map<string, string>();
-
-	private scopedClient(directory: string): OpencodeClient {
-		let c = this.scopedClients.get(directory);
-		if (!c) {
-			c = createSdkClient({
-				baseUrl: this.client.getBaseUrl(),
-				directory,
-			}).client;
-			this.scopedClients.set(directory, c);
-		}
-		return c;
-	}
-
 	// ─── Queries ──────────────────────────────────────────────────────────
 
 	/**
@@ -171,32 +150,6 @@ export class SessionManager extends EventEmitter<SessionManagerEvents> {
 		const clientOpts =
 			options?.roots !== undefined ? { roots: options.roots } : undefined;
 		const sessions = await this.client.session.list(clientOpts);
-
-		// The unscoped list returns only global-scope sessions. Sessions created
-		// by per-project TUI instances carry their own project scope and are
-		// invisible here — merge one scoped fetch per registered project so the
-		// list is complete. Message and send endpoints are not scoped, so this
-		// is the only gap.
-		if (!options?.roots) {
-			try {
-				const projects = loadDaemonConfig(this.configDir)?.projects ?? [];
-				const seen = new Set(sessions.map((s) => s.id));
-				for (const project of projects) {
-					if (!project.path) continue;
-					const res = await this.scopedClient(project.path).session.list();
-					const scoped = res.data ?? [];
-					for (const s of scoped) {
-						this.sessionDirectories.set(s.id, project.path);
-						if (!seen.has(s.id)) {
-							seen.add(s.id);
-							sessions.push(s);
-						}
-					}
-				}
-			} catch (cause) {
-				this.log.verbose(`scoped session merge failed: ${String(cause)}`);
-			}
-		}
 
 		// Track total session count from unfiltered fetches
 		if (!options?.roots) {

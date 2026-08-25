@@ -235,6 +235,36 @@ describe("handleSessionList", () => {
 		expect(sessionState.allSessions[0]!.id).toBe("a");
 	});
 
+	it("keeps chat state for an active session omitted from a scoped list", () => {
+		const activeId = "deep-linked-session";
+		const active = getOrCreateSessionSlot(activeId);
+		sessionState.currentId = activeId;
+		sessionState.sessions.set(activeId, makeSession({ id: activeId }));
+		setMessages(active.messages, [
+			{
+				type: "user",
+				uuid: "user-1",
+				text: "preserve me",
+			},
+		]);
+
+		handleSessionList({
+			type: "session_list",
+			sessions: [makeSession({ id: "other-session" })],
+			roots: false,
+		});
+
+		expect(sessionState.sessions.has(activeId)).toBe(true);
+		expect(currentChat().messages).toEqual([
+			{
+				type: "user",
+				uuid: "user-1",
+				text: "preserve me",
+			},
+		]);
+		clearSessionChatState(activeId);
+	});
+
 	it("applies ListSessions RPC responses through the same session-list path", () => {
 		applyListSessionsResponse({
 			projectSlug: "project-a",

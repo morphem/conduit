@@ -573,4 +573,34 @@ describe("OpenCode provider contract schemas", () => {
 			),
 		).toBe(true);
 	});
+
+	it("decodes current OpenCode patch summaries in user messages", () => {
+		const result = Schema.decodeUnknownEither(OpenCodeMessageWithPartsSchema)({
+			info: {
+				id: "msg_1",
+				sessionID: "ses_1",
+				role: "user",
+				time: { created: 1 },
+				agent: "build",
+				model: { providerID: "opencode", modelID: "x-preview-f-free" },
+				summary: {
+					additions: 1,
+					deletions: 0,
+					files: 1,
+					diffs: [
+						{
+							file: "README.md",
+							patch: "@@ -1 +1 @@",
+							status: "modified",
+							additions: 1,
+							deletions: 0,
+						},
+					],
+				},
+			},
+			parts: [{ id: "part_1", type: "text", text: "hello" }],
+		});
+
+		expect(Either.isRight(result)).toBe(true);
+	});
 });

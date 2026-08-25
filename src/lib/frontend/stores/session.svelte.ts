@@ -339,7 +339,10 @@ export function handleSessionList(
 	// child may not have learned its parentID yet, so they never reap.
 	if (roots !== true) {
 		for (const id of previousIds) {
-			if (!incomingIds.has(id)) {
+			// A deep-linked active session can be missing from a scoped or
+			// partially loaded list. Keep its chat state until the server sends
+			// an explicit session_deleted message.
+			if (!incomingIds.has(id) && id !== sessionState.currentId) {
 				clearSessionChatState(id);
 				sessionState.sessions.delete(id);
 			}

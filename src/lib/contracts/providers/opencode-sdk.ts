@@ -44,13 +44,49 @@ type NormalizeSchemaType<T> =
 				}
 			: T;
 
-const OpenCodeFileDiffSchema = Schema.Struct({
+const OpenCodeLegacyFileDiffSchema = Schema.Struct({
 	file: Schema.String,
 	before: Schema.String,
 	after: Schema.String,
 	additions: Schema.Number,
 	deletions: Schema.Number,
 });
+
+// OpenCode 1.18 returns a patch summary instead of before/after text.
+// Keep both wire shapes because the supported server range includes both.
+const OpenCodeCurrentFileDiffSchema = Schema.Struct({
+	file: Schema.String,
+	patch: Schema.String,
+	status: Schema.String,
+	additions: Schema.Number,
+	deletions: Schema.Number,
+});
+
+const OpenCodeFileDiffInputSchema = Schema.Union(
+	OpenCodeLegacyFileDiffSchema,
+	OpenCodeCurrentFileDiffSchema,
+);
+
+// Keep the legacy output shape for callers typed against SDK 1.17.18. The
+// current server shape is accepted and mapped without changing session data.
+const OpenCodeFileDiffSchema = Schema.transform(
+	OpenCodeFileDiffInputSchema,
+	OpenCodeLegacyFileDiffSchema,
+	{
+		strict: true,
+		decode: (diff) =>
+			"before" in diff
+				? diff
+				: {
+						file: diff.file,
+						before: "",
+						after: diff.patch,
+						additions: diff.additions,
+						deletions: diff.deletions,
+					},
+		encode: (diff) => diff,
+	},
+);
 
 const OpenCodeSessionTimeSchema = Schema.Struct({
 	created: Schema.Number,

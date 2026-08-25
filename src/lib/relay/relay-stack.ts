@@ -988,6 +988,36 @@ export async function createProjectRelay(
 								log.child("opencode-runtime-ingress"),
 							)
 						: undefined;
+				// Sessions this project already has in OpenCode — made in a TUI, or
+				// by an earlier relay — reach the store only through an SSE event
+				// that mentions them. Without this seeding the browser shows the
+				// project as empty while the sessions are there. The API client is
+				// scoped to the project directory, so the list is this project's.
+				if (opencodeRuntimeIngress != null) {
+					yield* Effect.tryPromise(() => api.session.list())
+						.pipe(
+							Effect.flatMap((sessions) =>
+								opencodeRuntimeIngress.importExistingSessionsEffect(
+									sessions.map((session) => ({
+										id: session.id,
+										...(session.title != null && { title: session.title }),
+										...(session.parentID != null && {
+											parentId: session.parentID,
+										}),
+									})),
+								),
+							),
+							Effect.catchAllCause((cause) =>
+								Effect.sync(() => {
+									log.warn(
+										"could not import the sessions OpenCode already holds",
+										{ error: formatErrorDetail(cause) },
+									);
+									return 0;
+								}),
+							),
+						);
+				}
 				if (config.signal?.aborted) {
 					return yield* Effect.fail(
 						new RelayCreationAbortedError({ slug: config.slug }),

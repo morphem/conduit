@@ -110,6 +110,73 @@ describe("EffectOpenCodeRuntimeIngress", () => {
 		if (dir) rmSync(dir, { recursive: true, force: true });
 	});
 
+	it("imports sessions OpenCode already holds, with their titles", async () => {
+		if (!hook || !runtime) throw new Error("test runtime not initialized");
+
+		const seeded = await Effect.runPromise(
+			hook.importExistingSessionsEffect([
+				{ id: "sess-import-001", title: "Work from the TUI" },
+				{ id: "sess-import-002" },
+			]),
+		);
+		expect(seeded).toBe(2);
+
+		const rows = runtime.runSync(
+			Effect.gen(function* () {
+				const sql = yield* SqlClient.SqlClient;
+				return yield* sql<{
+					id: string;
+					provider: string;
+					title: string;
+				}>`SELECT id, provider, title FROM sessions ORDER BY id`;
+			}),
+		);
+		expect(rows).toEqual([
+			{
+				id: "sess-import-001",
+				provider: "opencode",
+				title: "Work from the TUI",
+			},
+			{ id: "sess-import-002", provider: "opencode", title: "Untitled" },
+		]);
+	});
+
+	it("does not import a session the store already has", async () => {
+		if (!hook || !runtime) throw new Error("test runtime not initialized");
+
+		await Effect.runPromise(
+			hook.importExistingSessionsEffect([
+				{ id: "sess-import-003", title: "First title" },
+			]),
+		);
+		// A second ingress instance shares the store but not the in-memory set,
+		// which is what happens when a relay restarts.
+		const second = await runtime.runPromise(
+			makeEffectOpenCodeRuntimeIngress(makeLogger()),
+		);
+		const seeded = await Effect.runPromise(
+			second.importExistingSessionsEffect([
+				{ id: "sess-import-003", title: "Renamed elsewhere" },
+			]),
+		);
+		second.stopStatsLogging();
+
+		expect(seeded).toBe(0);
+		const rows = runtime.runSync(
+			Effect.gen(function* () {
+				const sql = yield* SqlClient.SqlClient;
+				return yield* sql<{ title: string; event_count: number }>`
+					SELECT
+						sessions.title AS title,
+						(SELECT COUNT(*) FROM events WHERE session_id = 'sess-import-003')
+							AS event_count
+					FROM sessions WHERE sessions.id = 'sess-import-003'`;
+			}),
+		);
+		expect(rows[0]?.title).toBe("First title");
+		expect(rows[0]?.event_count).toBe(2);
+	});
+
 	it("persists and projects translated SSE events through Effect services", async () => {
 		if (!hook || !runtime) throw new Error("test runtime not initialized");
 		const result = await Effect.runPromise(

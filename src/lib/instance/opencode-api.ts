@@ -400,22 +400,36 @@ class SessionNamespace {
 
 	/**
 	 * Send a prompt to a session (fire-and-forget via promptAsync).
-	 * Builds TextPartInput from text string for convenience.
+	 * Builds TextPartInput from text and FilePartInput from each image data URL.
 	 */
 	async prompt(
 		sessionId: string,
 		options: {
 			text: string;
+			images?: string[];
 			model?: { providerID: string; modelID: string };
 			agent?: string;
 		},
 	): Promise<void> {
+		// The server's prompt body is a list of PARTS. The old body carried one text part and
+		// dropped `images` entirely, so an attached screenshot never reached the model. Build a
+		// file part per image; the server decodes the data URL itself.
+		const parts: Array<
+			| { type: "text"; text: string }
+			| { type: "file"; mime: string; filename: string; url: string }
+		> = [];
+		if (options.text) parts.push({ type: "text", text: options.text });
+		for (const url of options.images ?? []) {
+			const mime = /^data:([^;,]+)[;,]/.exec(url)?.[1] ?? "image/png";
+			parts.push({ type: "file", mime, filename: "clipboard", url });
+		}
+		if (parts.length === 0) return;
 		await this.api.sdk("session.prompt", decodeOpenCodeUndefinedResponse, () =>
 			call(
 				this.api._sdk.session.promptAsync({
 					path: { id: sessionId },
 					body: {
-						parts: [{ type: "text" as const, text: options.text }],
+						parts,
 						...(options.model != null ? { model: options.model } : {}),
 						...(options.agent != null ? { agent: options.agent } : {}),
 					},

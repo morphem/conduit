@@ -67,7 +67,8 @@ export const sendMessageToSession = (input: SendMessageToSessionInput) =>
 		const imageList =
 			images && images.length > 0 ? Array.from(images) : undefined;
 		let activeId = input.sessionId;
-		if (!text) return;
+		// An image with no caption is a valid turn: the message is empty text plus file parts.
+		if (!text && !imageList) return;
 		if (!activeId) {
 			if (input.missingSessionClientId) {
 				wsHandler.sendTo(

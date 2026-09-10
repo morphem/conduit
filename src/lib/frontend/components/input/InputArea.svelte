@@ -229,7 +229,9 @@
 
 	async function sendMessage() {
 		const text = inputText.trim();
-		if (!text) return;
+		// The button is enabled for an image with no text too (`canSend`), so this must not
+		// require text — an image-only message is a valid turn.
+		if (!text && pendingImages.length === 0) return;
 
 		// Parse @references and fetch file contents
 		const refs = parseAtReferences(text);

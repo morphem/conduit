@@ -474,14 +474,16 @@
 		}
 	});
 
-	// ─── Visual viewport tracking (keyboard avoidance when terminal is open) ──
+	// ─── Visual viewport tracking (keyboard avoidance) ────────────────────────
 	// CSS dvh does NOT account for the virtual keyboard. We listen to the
-	// visualViewport API and constrain #app height so the terminal stays above
-	// the keyboard and xterm.js refits via its ResizeObserver.
-	// Active whenever the terminal panel is open on a mobile-width viewport.
+	// visualViewport API and constrain #app height so the composer (and the
+	// terminal, when open) stays above the keyboard.
+	// Active on mobile widths — keyboard shown or hidden. It used to be gated on
+	// the terminal panel, which left the chat composer hidden under the keyboard
+	// on the phone (reported 2026-09-11).
 	$effect(() => {
 		const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
-		if (!terminalState.panelOpen || !isMobile) {
+		if (!isMobile) {
 			vvHeight = null;
 			return;
 		}

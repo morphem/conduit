@@ -22,7 +22,7 @@ describe("session cost", () => {
 		const decoded = decodeOpenCodeSessionListResponse(raw) as unknown as Array<
 			Record<string, unknown>
 		>;
-		expect(decoded[0]?.cost).toBe(0.99);
+		expect(decoded[0]?.["cost"]).toBe(0.99);
 
 		const infos = toSessionInfoList(decoded as never);
 		expect(infos[0]?.cost).toBe(0.99);

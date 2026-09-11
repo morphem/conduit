@@ -19,6 +19,8 @@
 		message.sentDuringEpoch != null &&
 		currentChat().turnEpoch <= message.sentDuringEpoch,
 	);
+
+	const displayText = $derived(extractDisplayText(message.text));
 </script>
 
 <div
@@ -33,9 +35,22 @@
 		class:border-border={isQueued}
 	>
 		<div class="text-sm font-mono font-semibold uppercase tracking-[1.5px] text-brand-a mb-2">You</div>
-		<div class="text-base leading-[1.7] break-words whitespace-pre-wrap text-text">
-			{@html escapeHtml(extractDisplayText(message.text))}
-		</div>
+		{#if displayText}
+			<div class="text-base leading-[1.7] break-words whitespace-pre-wrap text-text">
+				{@html escapeHtml(displayText)}
+			</div>
+		{/if}
+		{#if message.images?.length}
+			<div class="mt-3 flex flex-wrap gap-2">
+				{#each message.images as src, i (i)}
+					<img
+						src={src}
+						alt={`Attached image ${i + 1}`}
+						class="max-h-48 max-w-full rounded-lg border border-border-subtle object-contain"
+					/>
+				{/each}
+			</div>
+		{/if}
 		{#if message.modelExecution?.drifted === true && message.modelExecution.requestedModel && message.modelExecution.expectedModel && message.modelExecution.actualModel}
 			<div
 				data-testid="turn-model-drift"

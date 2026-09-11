@@ -139,6 +139,10 @@ export const OpenCodeSessionDetailSchema = Schema.Struct({
 	agentID: Schema.optional(Schema.String),
 	slug: Schema.optional(Schema.String),
 	archived: Schema.optional(Schema.Boolean),
+	// The API returns the cumulative session cost at runtime but the SDK type omits it.
+	// `Schema.Struct` STRIPS unknown fields on decode, so without this line the value
+	// never reaches SessionInfo and the UI falls back to a partial sum.
+	cost: Schema.optional(Schema.Number),
 });
 
 export type OpenCodeSessionDetail = Schema.Schema.Type<

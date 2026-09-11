@@ -237,6 +237,8 @@ export interface SessionInfo {
 	forkPointTimestamp?: number;
 	/** Number of pending questions on this session (from server). */
 	pendingQuestionCount?: number;
+	/** Cumulative cost of the session in dollars (from the OpenCode API). */
+	cost?: number;
 }
 
 // ─── Ask User / Questions ───────────────────────────────────────────────────

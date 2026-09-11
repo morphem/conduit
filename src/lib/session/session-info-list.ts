@@ -45,6 +45,12 @@ export function toSessionInfoList(
 				info.pendingQuestionCount = qCount;
 			}
 
+			// Authoritative cumulative cost from the OpenCode session (live: the
+			// list is re-sent after every turn).
+			if (typeof s.cost === "number") {
+				info.cost = s.cost;
+			}
+
 			return info;
 		})
 		.sort((a, b) => (b.updatedAt as number) - (a.updatedAt as number));

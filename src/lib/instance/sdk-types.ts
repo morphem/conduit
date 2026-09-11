@@ -30,6 +30,8 @@ export type SessionDetail = Session & {
 	slug?: string;
 	/** Whether the session is archived (from API, not in SDK types) */
 	archived?: boolean;
+	/** Cumulative session cost in dollars (from API, not in SDK types) */
+	cost?: number;
 };
 
 export type {

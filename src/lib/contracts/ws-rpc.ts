@@ -276,6 +276,7 @@ export const SessionInfoSchema = Schema.Struct({
 	forkMessageId: Schema.optional(Schema.String),
 	forkPointTimestamp: Schema.optional(Schema.Number),
 	pendingQuestionCount: Schema.optional(Schema.Number),
+	cost: Schema.optional(Schema.Number),
 });
 
 export const ListSessionsResponseSchema = Schema.Struct({

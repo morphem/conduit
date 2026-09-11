@@ -10,6 +10,7 @@
 	// biome-ignore lint/style/useImportType: CommandMenu is used as a value for bind:this
 	import CommandMenu from "./CommandMenu.svelte";
 	import ContextBar from "./ContextBar.svelte";
+	import SessionCost from "./SessionCost.svelte";
 	// biome-ignore lint/style/useImportType: FileMenu is used as a value for bind:this
 	import FileMenu from "./FileMenu.svelte";
 	import HuginnMic from "./HuginnMic.svelte";
@@ -586,6 +587,9 @@
 				</div>
 			</div>
 		{/if}
+
+		<!-- Session cost total (like OpenCode's status bar) -->
+		<SessionCost />
 
 		<div
 			id="input-row"

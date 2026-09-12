@@ -88,6 +88,21 @@ const allowedPlainErrorThrows: readonly AllowedPlainThrow[] = [
 		reason: "browser attachment validation failure surfaced to UI caller",
 	},
 	{
+		path: "src/lib/frontend/components/input/HuginnMic.svelte",
+		snippetPattern: /Huginn \$\{res\.status\} on/,
+		reason: "Huginn API call failure surfaced to the mic UI caller",
+	},
+	{
+		path: "src/lib/frontend/components/input/HuginnMic.svelte",
+		snippetPattern: /transcription failed/,
+		reason: "Huginn transcription failure surfaced to the mic UI caller",
+	},
+	{
+		path: "src/lib/frontend/components/input/HuginnMic.svelte",
+		snippetPattern: /transcription timed out/,
+		reason: "Huginn transcription timeout surfaced to the mic UI caller",
+	},
+	{
 		path: "src/lib/frontend/stores/chat.svelte.ts",
 		snippetPattern: /currentChat\(\) is read-only/,
 		reason: "frontend mutation invariant on derived chat state",

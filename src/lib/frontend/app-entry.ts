@@ -1,7 +1,7 @@
 import { mount } from "svelte";
 import App from "./App.svelte";
-import { initTheme } from "./stores/theme.svelte.js";
 import { initAutoUpdate } from "./auto-update.js";
+import { initTheme } from "./stores/theme.svelte.js";
 
 const target = document.getElementById("app");
 if (!target) throw new Error("Missing #app mount point");

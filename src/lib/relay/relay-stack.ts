@@ -994,29 +994,28 @@ export async function createProjectRelay(
 				// project as empty while the sessions are there. The API client is
 				// scoped to the project directory, so the list is this project's.
 				if (opencodeRuntimeIngress != null) {
-					yield* Effect.tryPromise(() => api.session.list())
-						.pipe(
-							Effect.flatMap((sessions) =>
-								opencodeRuntimeIngress.importExistingSessionsEffect(
-									sessions.map((session) => ({
-										id: session.id,
-										...(session.title != null && { title: session.title }),
-										...(session.parentID != null && {
-											parentId: session.parentID,
-										}),
-									})),
-								),
+					yield* Effect.tryPromise(() => api.session.list()).pipe(
+						Effect.flatMap((sessions) =>
+							opencodeRuntimeIngress.importExistingSessionsEffect(
+								sessions.map((session) => ({
+									id: session.id,
+									...(session.title != null && { title: session.title }),
+									...(session.parentID != null && {
+										parentId: session.parentID,
+									}),
+								})),
 							),
-							Effect.catchAllCause((cause) =>
-								Effect.sync(() => {
-									log.warn(
-										"could not import the sessions OpenCode already holds",
-										{ error: formatErrorDetail(cause) },
-									);
-									return 0;
-								}),
-							),
-						);
+						),
+						Effect.catchAllCause((cause) =>
+							Effect.sync(() => {
+								log.warn(
+									"could not import the sessions OpenCode already holds",
+									{ error: formatErrorDetail(cause) },
+								);
+								return 0;
+							}),
+						),
+					);
 				}
 				if (config.signal?.aborted) {
 					return yield* Effect.fail(

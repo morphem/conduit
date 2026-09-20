@@ -28,6 +28,7 @@ import {
 	getModel,
 	getPermissionMode,
 	getVariant,
+	isModelUserSelected,
 	type ModelOverride,
 	type OverridesStateTag,
 	setDefaultModel,
@@ -496,8 +497,13 @@ export const getModelsResponse = (
 				);
 			}
 		}
+		const userSelectedModel = activeId
+			? yield* isModelUserSelected(activeId)
+			: false;
 		const activeModel = selectedModelMatchesInstance
-			? (sessionModel ?? fallbackModel)
+			? userSelectedModel
+				? fallbackModel
+				: (sessionModel ?? fallbackModel)
 			: undefined;
 
 		// Send variant_info for the current model so clients get refreshed state

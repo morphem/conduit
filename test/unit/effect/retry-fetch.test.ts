@@ -9,7 +9,7 @@ describe("Effect-based retry fetch", () => {
 	it.live("succeeds on first attempt when server responds 200", () =>
 		Effect.gen(function* () {
 			const result = yield* Effect.exit(
-				fetchWithRetry("http://localhost:0/does-not-exist"),
+				fetchWithRetry("http://[::1]:0/does-not-exist"),
 			);
 			expect(Exit.isFailure(result)).toBe(true); // Connection refused is expected
 		}),
@@ -18,7 +18,7 @@ describe("Effect-based retry fetch", () => {
 	it.live("returns typed OpenCodeConnectionError on failure", () =>
 		Effect.gen(function* () {
 			const result = yield* Effect.exit(
-				fetchWithRetry("http://localhost:0/does-not-exist"),
+				fetchWithRetry("http://[::1]:0/does-not-exist"),
 			);
 			expect(Exit.isFailure(result)).toBe(true);
 			if (Exit.isFailure(result)) {
@@ -61,7 +61,7 @@ describe("Effect-based retry fetch", () => {
 			// longer than a single attempt (due to retry delays)
 			const start = Date.now();
 			const result = yield* Effect.exit(
-				fetchWithRetry("http://localhost:0/does-not-exist", undefined, {
+				fetchWithRetry("http://[::1]:0/does-not-exist", undefined, {
 					retries: 1,
 					retryDelay: 50,
 				}),
@@ -87,7 +87,7 @@ describe("Effect-based retry fetch", () => {
 			// With retryDelay=100 and retries=2, total delay should be ~300ms (100 + 200)
 			const start = Date.now();
 			yield* Effect.exit(
-				fetchWithRetry("http://localhost:0/does-not-exist", undefined, {
+				fetchWithRetry("http://[::1]:0/does-not-exist", undefined, {
 					retries: 2,
 					retryDelay: 100,
 				}),
@@ -100,7 +100,7 @@ describe("Effect-based retry fetch", () => {
 
 	it.live("accepts RequestInfo | URL input type", () =>
 		Effect.gen(function* () {
-			const url = new URL("http://localhost:0/test");
+			const url = new URL("http://[::1]:0/test");
 			const result = yield* Effect.exit(fetchWithRetry(url));
 			expect(Exit.isFailure(result)).toBe(true); // Connection refused expected
 		}),

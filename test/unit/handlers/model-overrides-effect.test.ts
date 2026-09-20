@@ -8,6 +8,8 @@ import {
 	ConfigTag,
 	LoggerTag,
 	OpenCodeModelServiceTag,
+	type OpenCodeSessionDetail,
+	OrchestrationEngineTag,
 	type WebSocketHandlerShape,
 	WebSocketHandlerTag,
 } from "../../../src/lib/domain/relay/Services/services.js";
@@ -16,7 +18,10 @@ import {
 	getVariant,
 	makeOverridesStateLive,
 } from "../../../src/lib/domain/relay/Services/session-overrides-state.js";
-import { switchModelForSession } from "../../../src/lib/handlers/model.js";
+import {
+	getModelsResponse,
+	switchModelForSession,
+} from "../../../src/lib/handlers/model.js";
 import { handleMessage } from "../../../src/lib/handlers/prompt.js";
 import type { Logger } from "../../../src/lib/logger.js";
 import type { OrchestrationEngine } from "../../../src/lib/provider/orchestration-engine.js";
@@ -210,6 +215,87 @@ describe("model handlers with Effect override state", () => {
 					),
 				),
 			);
+		},
+	);
+
+	it.effect(
+		"keeps the user-selected model when the provider reports an older session model",
+		() => {
+			const ws = mockWsHandler();
+			const modelService = {
+				listProviders: vi.fn(() =>
+					Effect.succeed({
+						connected: ["openai"],
+						defaults: { openai: "gpt-default" },
+						providers: [
+							{
+								id: "openai",
+								name: "OpenAI",
+								models: [
+									{ id: "gpt-default", name: "Default" },
+									{ id: "gpt-selected", name: "Selected" },
+								],
+							},
+						],
+					}),
+				),
+				getSession: vi.fn(() =>
+					Effect.succeed({
+						id: "session-1",
+						modelID: "gpt-default",
+						providerID: "openai",
+					} as unknown as OpenCodeSessionDetail),
+				),
+				persistDefaultModel: vi.fn(() => Effect.succeed(undefined)),
+			};
+			const engine = withDispatchEffect({
+				bindSession: vi.fn(),
+				unbindSession: vi.fn(),
+				getProviderForSession: vi.fn(() => "opencode"),
+				dispatch: vi.fn(async () => ({
+					models: [],
+					supportsTools: false,
+					supportsThinking: false,
+					supportsPermissions: false,
+					supportsQuestions: false,
+					supportsAttachments: false,
+					supportsFork: false,
+					supportsRevert: false,
+					commands: [],
+				})),
+			} as unknown as OrchestrationEngine);
+			const layer = Layer.mergeAll(
+				Layer.succeed(OpenCodeModelServiceTag, modelService),
+				Layer.succeed(WebSocketHandlerTag, ws),
+				Layer.succeed(LoggerTag, mockLogger()),
+				Layer.succeed(OrchestrationEngineTag, engine),
+				Layer.succeed(
+					ConfigTag,
+					makeMockConfig({
+						configDir: mkdtempSync(join(tmpdir(), "conduit-model-resume-")),
+					}),
+				),
+				makeOverridesStateLive(),
+			);
+
+			return Effect.gen(function* () {
+				yield* switchModelForSession({
+					clientId: "client-1",
+					sessionId: "session-1",
+					modelId: "gpt-selected",
+					providerId: "openai",
+				});
+
+				const response = yield* getModelsResponse({
+					clientId: "client-1",
+					sessionId: "session-1",
+				});
+
+				expect(response.active).toEqual({
+					model: "gpt-selected",
+					provider: "openai",
+				});
+			}).pipe(Effect.provide(layer));
 		},
 	);
 });

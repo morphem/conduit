@@ -16,7 +16,7 @@ import {
 	Ref,
 	Scope,
 } from "effect";
-import { afterEach, expect, vi } from "vitest";
+import { afterEach, beforeEach, expect, vi } from "vitest";
 import { AuthManager } from "../../../src/lib/auth.js";
 import { ConfigPersistenceNoopLive } from "../../../src/lib/domain/daemon/Layers/config-persistence-layer.js";
 import { ProjectDiscoveryLive } from "../../../src/lib/domain/daemon/Layers/project-discovery-layer.js";
@@ -186,6 +186,17 @@ describe("ProjectDiscoveryLive", () => {
 // ─── discoverProjectsEffect (direct invocation) ────────────────────────────
 
 describe("discoverProjectsEffect", () => {
+	beforeEach(() => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockRejectedValue(new TypeError("OpenCode is unreachable")),
+		);
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	const directLayer = Layer.mergeAll(
 		configRefLayer,
 		instanceLayer,

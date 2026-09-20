@@ -53,6 +53,33 @@
 
 	const inputDrafts = new Map<string, string>();
 	let previousSessionId: string | null = null;
+	let locallyChangedDraftSessionId: string | null = null;
+
+	function inputDraftKey(sessionId: string): string | null {
+		const projectSlug = getCurrentSlug();
+		return projectSlug ? `conduit-input-draft:${projectSlug}:${sessionId}` : null;
+	}
+
+	function loadInputDraft(sessionId: string): string {
+		const key = inputDraftKey(sessionId);
+		if (!key) return "";
+		try {
+			return localStorage.getItem(key) ?? "";
+		} catch {
+			return "";
+		}
+	}
+
+	function persistInputDraft(sessionId: string, text: string) {
+		const key = inputDraftKey(sessionId);
+		if (!key) return;
+		try {
+			if (text) localStorage.setItem(key, text);
+			else localStorage.removeItem(key);
+		} catch {
+			// Browser storage is best-effort. Server sync remains the fallback.
+		}
+	}
 
 	$effect(() => {
 		const currentId = sessionState.currentId;
@@ -61,9 +88,14 @@
 				// Save draft for the session we're leaving
 				if (previousSessionId) {
 					inputDrafts.set(previousSessionId, inputText);
+					persistInputDraft(previousSessionId, inputText);
 				}
 				// Restore draft for the session we're entering
-				inputText = inputDrafts.get(currentId ?? "") ?? "";
+				const memoryDraft = currentId ? inputDrafts.get(currentId) : undefined;
+				const storedDraft = currentId ? loadInputDraft(currentId) : "";
+				inputText = memoryDraft ?? storedDraft;
+				locallyChangedDraftSessionId =
+					currentId && inputText ? currentId : null;
 				previousSessionId = currentId;
 				// Cancel any pending outgoing sync from the previous session
 				if (inputSyncTimer) {
@@ -85,7 +117,21 @@
 	$effect(() => {
 		if (inputSyncState.lastUpdated > lastSyncApplied) {
 			lastSyncApplied = inputSyncState.lastUpdated;
-			inputText = inputSyncState.text;
+			const sessionId = sessionState.currentId;
+			if (
+				sessionId &&
+				locallyChangedDraftSessionId === sessionId &&
+				inputSyncState.text !== inputText
+			) {
+				void syncInputDraftRpc({ sessionId, text: inputText }).catch(() => {});
+			} else {
+				inputText = inputSyncState.text;
+				locallyChangedDraftSessionId = null;
+			}
+			if (sessionId) {
+				inputDrafts.set(sessionId, inputText);
+				persistInputDraft(sessionId, inputText);
+			}
 		}
 	});
 
@@ -180,6 +226,12 @@
 	function handleInput() {
 		if (textareaEl) {
 			cursorPos = textareaEl.selectionStart ?? 0;
+		}
+		const sessionId = sessionState.currentId;
+		if (sessionId) {
+			locallyChangedDraftSessionId = sessionId;
+			inputDrafts.set(sessionId, inputText);
+			persistInputDraft(sessionId, inputText);
 		}
 		autoResize();
 
@@ -337,6 +389,8 @@
 		cursorPos = 0;
 		if (sessionState.currentId) {
 			inputDrafts.delete(sessionState.currentId);
+			persistInputDraft(sessionState.currentId, "");
+			locallyChangedDraftSessionId = null;
 		}
 		// Cancel any pending debounced input_sync (it would re-sync the old
 		// draft text to the server after we just cleared it) and send an

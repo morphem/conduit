@@ -12,6 +12,7 @@ export default defineConfig({
 		"permission-mode-selector.spec.ts",
 		"composer-drift-layout.spec.ts",
 		"composer-draft.spec.ts",
+		"composer-ear.spec.ts",
 		"composer-large-paste.spec.ts",
 	],
 	fullyParallel: true,

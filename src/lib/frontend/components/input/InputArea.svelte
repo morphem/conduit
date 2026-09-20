@@ -428,8 +428,16 @@
 
 	/** Append a Huginn transcript (raw or refined) at the end of the draft. */
 	function handleHuginnInsert(text: string) {
-		inputText = inputText.trim() ? `${inputText.trimEnd()} ${text}` : text;
+		const piece = text.trim();
+		if (!piece) return;
+		inputText = inputText.trim() ? `${inputText.trimEnd()} ${piece}` : piece;
 		cursorPos = inputText.length;
+		const sessionId = sessionState.currentId;
+		if (sessionId) {
+			locallyChangedDraftSessionId = sessionId;
+			inputDrafts.set(sessionId, inputText);
+			persistInputDraft(sessionId, inputText);
+		}
 		requestAnimationFrame(() => {
 			if (textareaEl) {
 				textareaEl.focus();
